@@ -125,6 +125,9 @@ using namespace arma;
 // }
 
 sp_cx_mat spdiags(int m, cx_mat cvals){
+  // m: size of the matrix mxm
+  // cvals: mx1 cx matrix of the vlaues to put on the diagonal
+  // only supports main diagonal, which is enough for fdfd
   mat ind_cur = linspace(0,m-1,m);
   mat AB = join_rows(ind_cur, ind_cur).t();
   umat locations =  conv_to<umat>::from(AB);
