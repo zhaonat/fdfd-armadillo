@@ -66,20 +66,20 @@ sp_cx_mat createDws(string w, int s, double* dL,int*  N){
    return dws;
 }
 
-int main(){
-
-    int N [2] = {20,20};
-    double dL [2] = {0.1, 0.1};
-    int m = N[0]*N[1];  // number of unknows (=number of pixels)
-
-    //cout << X << endl;
-    sp_cx_mat Dyb = createDws("y",-1,dL,N);
-    sp_cx_mat Dxf = createDws("x",1,dL,N);
-    sp_cx_mat Dxb = createDws("x",-1,dL,N);
-    sp_cx_mat Dyf = createDws("y",1,dL,N);
-
-    cout << Dxf*Dxb << endl;
-
-    return 0;
-
-  }
+// int main(){
+//
+//     int N [2] = {20,20};
+//     double dL [2] = {0.1, 0.1};
+//     int m = N[0]*N[1];  // number of unknows (=number of pixels)
+//
+//     //cout << X << endl;
+//     sp_cx_mat Dyb = createDws("y",-1,dL,N);
+//     sp_cx_mat Dxf = createDws("x",1,dL,N);
+//     sp_cx_mat Dxb = createDws("x",-1,dL,N);
+//     sp_cx_mat Dyf = createDws("y",1,dL,N);
+//
+//     cout << Dxf*Dxb << endl;
+//
+//     return 0;
+//
+//   }

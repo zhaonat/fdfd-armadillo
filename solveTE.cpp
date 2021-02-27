@@ -4,7 +4,9 @@
 #include <iostream>
 #include <numeric> //std::iota
 #include <algorithm>
+# include "derivatives.cpp"
 
+// should we have .h files or what?
 // use armadillo, it directly maps matlab syntax
 using namespace std;
 using namespace arma;
@@ -148,7 +150,6 @@ int main(){
     cx_mat eps_r = ones<cx_mat>(n,n);
     // specify source;
     cx_mat Mz = zeros<cx_mat>(n,n);
-
     cx_mat b = 1i*vectorise(Mz);
 
     //make a diagonal matrix using sp_cx_mat...no diag function, whihc sucks
@@ -158,9 +159,18 @@ int main(){
     umat locations =  conv_to<umat>::from(AB);
     cx_mat cvals = conv_to<cx_mat>::from(vectorise(eps_r));
     sp_cx_mat Teps(locations, cvals);
+    sp_cx_mat Teps_inv(locations, 1/cvals);
+    sp_cx_mat Dyb = createDws("y",-1,dL,N);
+    sp_cx_mat Dxf = createDws("x",1,dL,N);
+    sp_cx_mat Dxb = createDws("x",-1,dL,N);
+    sp_cx_mat Dyf = createDws("y",1,dL,N);
+
+    sp_cx_mat A = Dxf*(Teps_inv)*Dxb + Dyf*(Teps_inv)*Dyb + omega^2*Teps;
+
+    spsolve(A,b);
 
     //cout<<Teps<<endl;
-    cout << diff(mat(N)) << endl;
+    //cout << diff(mat(N)) << endl;
 
     return 0;
 

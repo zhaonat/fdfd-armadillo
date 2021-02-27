@@ -10,10 +10,9 @@
 using namespace std;
 using namespace arma;
 
+//const double eps0;
+
 //(wrange, s, omega, eps0, mu0, Nw, Nw_pml, lnR, m)
-int create_sfactor(float omega, float eps0, float mu0, int Nw, int Nw_pml, string s){
-  return 2;
-}
 
 complex<double> pmlfunc(double L, double d_pml, double sigma_max, double omega, double eps0){
   // evaluate the pml scaling funciton of the complex conductivity
@@ -23,36 +22,86 @@ complex<double> pmlfunc(double L, double d_pml, double sigma_max, double omega, 
   return ansr;
 }
 
+cx_mat create_sfactor(double * wrange,
+                   string s,
+                   double omega,
+                   double eps0,
+                   double mu0,
+                   int Nw,
+                   int Nw_pml){
+   // special constants
+   double lnR = -12.0;
+   double m = 3.5;
+   double eta0 = sqrt(mu0/eps0);
+
+
+   mat w_array = linspace(wrange[0], wrange[1], Nw+1); // outputs a column vector?
+   // specifies where the pml begins on each side in units of L0 or microns
+   double loc_pml [2] = {w_array[Nw_pml], w_array[Nw-Nw_pml]};
+   // we may need to do this manually;
+   double d_pml [2] = {abs(wrange[0]-loc_pml[0]),abs(wrange[1]-loc_pml[1])};
+   // double armadillo support scalar/vector??
+   double sigma_max [2]= {-(m+1)*lnR/(2*eta0)/d_pml[0], -(m+1)*lnR/(2*eta0)/d_pml[1]};
+
+   // we use ws to evaluate the pml coordinates
+   mat ws;
+   if(s == "b"){
+     ws = w_array.rows(0,Nw-1);
+   }else{
+     ws = (w_array.rows(0,Nw-1)+w_array.rows(1,Nw))/2;
+   }
+
+   // extract all indices in w_array that needs to be evaluated;
+   vector<double> w_left; //this is the corresponding thing in ind_pml
+   vector<double> w_right;
+
+   for(int i = 0; i< Nw; i++){
+     if(ws[i] < loc_pml[0]){
+       w_left.push_back(ws[i]);
+     }
+     if(ws[i] > loc_pml[1]){
+       w_right.push_back(ws[i]);
+     }
+   }
+   // Construct the final sfactor array
+   cx_mat sfactor_array = ones<cx_mat>(1, Nw);
+
+   for(int i = 0; i < w_right.size(); i++){
+     //cout << w_right[i] << endl;
+     complex<double> tval = pmlfunc(abs(loc_pml[1]-w_right[i]), d_pml[1], sigma_max[1], omega, eps0);
+     sfactor_array[Nw-Nw_pml+i] = tval;
+   }
+
+   // left side
+   for(int i = 0; i < w_right.size(); i++){
+     complex<double> tval = pmlfunc(abs(loc_pml[0]-w_left[i]), d_pml[0], sigma_max[0], omega, eps0);
+     sfactor_array[i] = tval;
+   }
+  return sfactor_array;
+}
+
 int main(){
     /// it appears complex does not support float, only double
     // parameters for pmlfunc
-    double L = 1;
-    double d_pmli = 1;
-    double omega = 1;
-    double eps0 = 1;
+    double L0 = 1e-6;
+
+    double eps0 = 8.85*1e-12*L0;
+    double mu0 = 4*M_PI*1e-7*L0;
+    double c0 = 1/sqrt(mu0*eps0);
+
+    double wvlen = 3.0;
+    double omega = 2*M_PI*c0/wvlen;
 
     // =============================================
-    int N [2] = {20,20};
-    double dL [2] = {0.1, 0.1};
-    int n = 20;  // size of the image
     string s = "f";
     double lnR = -12.0;
     double m = 3.5;
-    double eta0 = 377.0;
 
-    double wrange [2] = {-1.0, 1.0};
+    double eta0 = sqrt(mu0/eps0);
+
+    double wrange [2] = {-1.0, 1.0}; // specified units of L0 or microns typically
     int Nw = 20;
     int Nw_pml = 5;
-
-    // double armadillo support scalar/vector??
-
-
-    double sigma_max = -(m+1)*lnR/(2*eta0)/d_pmli;
-
-
-    // play with complex values
-    complex<double> z1 = 1i * m*lnR;
-    cout << pow(2,2)<< endl;
 
     //would I prefer this being a vector?
     mat w_array = linspace(wrange[0], wrange[1], Nw+1); // outputs a column vector?
@@ -60,58 +109,67 @@ int main(){
     // d_pml = abs(wrange - loc_pml);
     // sigma_max = -(m+1)*lnR/(2*eta0)/(d_mpl);
 
-    // specifies where the pml begins on each side
+    // specifies where the pml begins on each side in units of L0 or microns
     double loc_pml [2] = {w_array[Nw_pml], w_array[Nw-Nw_pml]};
 
     //d_pml = abs(wrange - loc_pml); % pml thickness
 
     // we may need to do this manually;
-    double d_pml [2] = {abs(wrange[0]+loc_pml[0]),abs(wrange[1]-loc_pml[1])};
+    double d_pml [2] = {abs(wrange[0]-loc_pml[0]),abs(wrange[1]-loc_pml[1])};
     // mat test = 1./w_array;
-    // cout << test << endl;
+    cout << d_pml[0] <<" "<< d_pml[1] << endl;
+    // double armadillo support scalar/vector??
+    double sigma_max [2]= {-(m+1)*lnR/(2*eta0)/d_pml[0], -(m+1)*lnR/(2*eta0)/d_pml[1]};
 
 
+    // we use ws to evaluate the pml coordinates
+    mat ws;
     if(s == "b"){
-      mat ws = w_array.rows(0,Nw-1);
+      ws = w_array.rows(0,Nw-1);
     }else{
-      mat ws = w_array.rows(1,Nw-1);
+      ws = (w_array.rows(0,Nw-1)+w_array.rows(1,Nw))/2;
     }
 
     // extract all indices in w_array that needs to be evaluated;
-    vector<double> w_left;
+    vector<double> w_left; //this is the corresponding thing in ind_pml
     vector<double> w_right;
+
     for(int i = 0; i< Nw; i++){
-      if(w_array[i] < d_pml[0]){
-        w_left.push_back(i);
+      if(ws[i] < loc_pml[0]){
+        w_left.push_back(ws[i]);
       }
-      if(w_array[i] > d_pml[i]){
-        w_right.push_back(i);
+      if(ws[i] > loc_pml[1]){
+        w_right.push_back(ws[i]);
       }
     }
-
+    //reverse(w_left.begin(),myvector.end())
+    cout <<w_left.size() << " " << w_right.size() << endl;
     // Construct the final sfactor array
-    mat sfactor_array = ones(1, Nw);
-    cx_mat y = conv_to< cx_mat >::from(sfactor_array);
+    cx_mat sfactor_array = ones<cx_mat>(1, Nw);
     // assign subset of sfactor array to the values denoted in.
 
     //so some casting does indeed happen
-    y.cols(1,3) = {1,2,3};
-    cout << y << endl;
+    // sfactor_array.cols(1,3) = {1,2,3};
+    //cout << sfactor_array << endl;
 
     // let's evaluate the pml function on w_left and w_right;
+    // right side
+    //sfactor = @(L) 1 - 1i * sigma_max(n)/(omega*eps0) * (L/d_pml(n)).^m;
+    // sfactor(abs(loc_pml(n) - ws(ind_pml{n})))
     for(int i = 0; i < w_right.size(); i++){
-      cout << w_right[i] << endl;
-      complex<double> tval = pmlfunc(L, d_pmli, sigma_max, omega, eps0);
-
+      //cout << w_right[i] << endl;
+      complex<double> tval = pmlfunc(abs(loc_pml[1]-w_right[i]), d_pml[1], sigma_max[1], omega, eps0);
+      sfactor_array[Nw-Nw_pml+i] = tval;
     }
 
-    complex<double> tval = pmlfunc(L, d_pmli, sigma_max, omega, eps0);
-    cout << tval << endl;
-    //(double L, double d_pml, double sigma_max, double omega, double eps0)
-
-    //assign left half of the w_array
-
-    // assign right half of the array
+    // left side
+    for(int i = 0; i < w_right.size(); i++){
+      complex<double> tval = pmlfunc(abs(loc_pml[0]-w_left[i]), d_pml[0], sigma_max[0], omega, eps0);
+      cout << omega<<" "<< eps0<<" " << d_pml[0]<<" " << w_left[i]<<" " << endl;
+      cout <<tval << endl;
+      sfactor_array[i] = tval;
+    }
+    cout << sfactor_array << endl;
 
     return 0;
 
