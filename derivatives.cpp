@@ -1,4 +1,3 @@
-//#include <armadillo>
 #include <armadillo>
 #include <vector>
 #include <iostream>
@@ -46,7 +45,7 @@ sp_cx_mat createDws(string w, int s, double* dL,int*  N){
    ind_adj = circshift(ind_adj, shift_inds[0],shift_inds[1]);
    //can I now do something like: roll or circshift
 
-   cout<<ind_adj <<endl;
+   //cout<<ind_adj <<endl;
 
    ind_adj = reshape(ind_adj, m,1);
 
@@ -67,7 +66,7 @@ sp_cx_mat createDws(string w, int s, double* dL,int*  N){
 }
 
 // int main(){
-//
+//     // does this have to exist or else compiling it doesn't make sense?
 //     int N [2] = {20,20};
 //     double dL [2] = {0.1, 0.1};
 //     int m = N[0]*N[1];  // number of unknows (=number of pixels)
