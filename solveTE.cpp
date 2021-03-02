@@ -5,6 +5,7 @@
 #include <numeric> //std::iota
 #include <algorithm>
 #include "derivatives.h"
+#include "helpers.h"
 
 // should we have .h files or what?
 // use armadillo, it directly maps matlab syntax
@@ -141,7 +142,11 @@ int main(){
 
     double L0 = 1e-6; //baseline units
     int N [2] = {200,200};
+    int npml [2] = {10,10};
     double dL [2] = {0.01, 0.01};
+    double xrange [2] = {-1,1};
+    double yrange [2] = {-1,1};
+
     int n = N[0];  // size of the image
     int m = n*n;  // number of unknows (=number of pixels)
     double wvlen = 1.0; //microns
@@ -187,6 +192,30 @@ int main(){
 
     //cout<<Teps<<endl;
     //cout << diff(mat(N)) << endl;
+
+    // add a pml
+    cx_mat s_vector_x_f = create_sfactor(xrange,"f",omega,eps0, mu0,N[0],npml[0]);
+    cx_mat s_vector_x_b = create_sfactor(xrange,"b",omega,eps0, mu0,N[0],npml[0]);
+    cx_mat s_vector_y_f = create_sfactor(yrange,"f",omega,eps0, mu0,N[1],npml[1]);
+    cx_mat s_vector_y_b = create_sfactor(yrange,"b",omega,eps0, mu0,N[1],npml[1]);
+
+    // convert these to matrices 2d, not yet flattened
+    cx_mat Sx_f_2D = repmat(s_vector_x_f, N[0],1);
+    cx_mat Sy_f_2D = repmat(trans(s_vector_y_f), 1,N[1]);
+    cx_mat Sx_b_2D = repmat(s_vector_x_b,  N[0],1);
+    cx_mat Sy_b_2D = repmat(trans(s_vector_y_b), 1,N[1]);
+    cout << Sy_f_2D.n_rows << " "<<Sy_f_2D.n_cols << endl;
+
+    //convert these to the final flattened diagonal matrices
+    //     Sxf = spdiags(M, Sx_f_vec);
+    //     Sxb = spdiags(M, Sx_b_vec);
+    //     Syf = spdiags(M, Sy_f_vec);
+    //     Syb = spdiags(M, Sy_b_vec);
+    sp_cx_mat Sxf = spdiags(m, vectorise(Sx_f_2D));
+    sp_cx_mat Sxb = spdiags(m, vectorise(Sx_f_2D));
+    sp_cx_mat Syf = spdiags(m, vectorise(Sx_f_2D));
+    sp_cx_mat Syb = spdiags(m, vectorise(Sx_f_2D));
+
 
     return 0;
 
