@@ -55,7 +55,7 @@ map solveTM(double L0, double dL, double wvlen,
     sp_cx_mat A = Dxf*(Teps_inv)*Dxb + Dyf*(Teps_inv)*Dyb + omega*omega*Teps;
 
     // different types of solves... superlu
-    cx_mat X = spsolve(A,b); //Hz
+    cx_mat X = spsolve(A,b,"superlu"); //Hz
 
     // let's determine the other fields;
     hx = -1/(1i*omega)*(1/mu0)*Dyf)*X;

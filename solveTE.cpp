@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "derivatives.h"
 #include "helpers.h"
+#include <chrono>
 
 // should we have .h files or what?
 // use armadillo, it directly maps matlab syntax
@@ -142,14 +143,14 @@ int main(){
 
     double L0 = 1e-6; //baseline units
     int N [2] = {200,200};
-    int npml [2] = {10,10};
+    int npml [2] = {20,20};
     double dL [2] = {0.01, 0.01};
     double xrange [2] = {-1,1};
     double yrange [2] = {-1,1};
 
     int n = N[0];  // size of the image
     int m = n*n;  // number of unknows (=number of pixels)
-    double wvlen = 1.0; //microns
+    double wvlen = 0.5; //microns
     double eps0 = 8.85*1e-12*L0;
     double mu0 = 4*M_PI*1e-7*L0;
     double c0 = 1/sqrt(eps0*mu0);
@@ -159,15 +160,20 @@ int main(){
     cx_mat eps_r = ones<cx_mat>(n,n);
     // specify source;
     cx_mat Mz = zeros<cx_mat>(n,n);
-    Mz[n/2, n/2] = 1; // simple point source
-    cx_mat b = 1i*omega*vectorise(Mz);
+    int ind_src [2] = {n/2,n/2};
+    cout << n/2 << endl;
+    // for(int i = 0; i<n; i++){
+    //   Mz(i,100) = 1; // simple point source
+    // }
+    Mz(n/2,n/2) = 1;
+    cx_mat b = 1i*omega*vectorise(Mz,0);
 
     //make a diagonal matrix using sp_cx_mat...no diag function, whihc sucks
     mat ind_cur = linspace(0,m-1,m);
 
     mat AB = join_rows(ind_cur, ind_cur).t();
     umat locations =  conv_to<umat>::from(AB);
-    cx_mat cvals = conv_to<cx_mat>::from(vectorise(eps0*eps_r));
+    cx_mat cvals = conv_to<cx_mat>::from(vectorise(eps0*eps_r,1));
     sp_cx_mat Teps(locations, cvals);
     sp_cx_mat Teps_inv(locations, 1/cvals);
     sp_cx_mat Dyb = createDws("y",-1,dL,N);
@@ -178,12 +184,13 @@ int main(){
     sp_cx_mat A = Dxf*(1/mu0)*Dxb + Dyf*(1/mu0)*Dyb + omega*omega*Teps;
 
     // different types of solves... superlu
+    // is there anyway to time this line?
     cx_mat X = spsolve(A,b);
 
     // reshape to a field
     //cx_mat Hz = reshape(X,n,n);
 
-    cout << X << endl;
+    // cout << X << endl;
 
     // save this field into a data files
     //Hz.save("test_hz", hdf5_binary);
@@ -198,12 +205,28 @@ int main(){
     cx_mat s_vector_x_b = create_sfactor(xrange,"b",omega,eps0, mu0,N[0],npml[0]);
     cx_mat s_vector_y_f = create_sfactor(yrange,"f",omega,eps0, mu0,N[1],npml[1]);
     cx_mat s_vector_y_b = create_sfactor(yrange,"b",omega,eps0, mu0,N[1],npml[1]);
+    s_vector_x_f.save("sfactorxf.csv",csv_ascii);
+    s_vector_x_b.save("sfactorxb.csv",csv_ascii);
+    s_vector_y_f.save("sfactoryf.csv",csv_ascii);
+    s_vector_y_b.save("sfactoryb.csv",csv_ascii);
 
     // convert these to matrices 2d, not yet flattened
-    cx_mat Sx_f_2D = repmat(s_vector_x_f, N[0],1);
-    cx_mat Sy_f_2D = repmat(trans(s_vector_y_f), 1,N[1]);
-    cx_mat Sx_b_2D = repmat(s_vector_x_b,  N[0],1);
-    cx_mat Sy_b_2D = repmat(trans(s_vector_y_b), 1,N[1]);
+    //
+    cx_mat Sx_f_2D = repmat(1/s_vector_x_f, N[0],1);
+    cx_mat Sy_f_2D = repmat(1/strans(s_vector_y_f), 1,N[1]); //trans does hermitian
+    cx_mat Sx_b_2D = repmat(1/s_vector_x_b,  N[0],1);
+    cx_mat Sy_b_2D = repmat(1/strans(s_vector_y_b), 1,N[1]);
+    // how do we check all these matrices were correctly made?
+
+    //save these matrices
+    Sx_f_2D.save("Sx_f_2D.csv",csv_ascii);
+    Sy_f_2D.save("Sy_f_2D.csv",csv_ascii);
+    Sx_b_2D.save("Sx_b_2D.csv",csv_ascii);
+    Sy_b_2D.save("Sy_b_2D.csv",csv_ascii);
+
+
+    cout << Sx_f_2D << endl;
+
     cout << Sy_f_2D.n_rows << " "<<Sy_f_2D.n_cols << endl;
 
     //convert these to the final flattened diagonal matrices
@@ -211,11 +234,44 @@ int main(){
     //     Sxb = spdiags(M, Sx_b_vec);
     //     Syf = spdiags(M, Sy_f_vec);
     //     Syb = spdiags(M, Sy_b_vec);
-    sp_cx_mat Sxf = spdiags(m, vectorise(Sx_f_2D));
-    sp_cx_mat Sxb = spdiags(m, vectorise(Sx_f_2D));
-    sp_cx_mat Syf = spdiags(m, vectorise(Sx_f_2D));
-    sp_cx_mat Syb = spdiags(m, vectorise(Sx_f_2D));
+    //concatenate Sx_f_2D row-wise?
+    sp_cx_mat Sxf = spdiags(m, vectorise(Sx_f_2D,1));
+    sp_cx_mat Sxb = spdiags(m, vectorise(Sx_b_2D,1));
+    sp_cx_mat Syf = spdiags(m, vectorise(Sy_f_2D,1));
+    sp_cx_mat Syb = spdiags(m, vectorise(Sy_b_2D,1));
 
+    // extract spdiags
+    sp_cx_mat sxfdiag = Sxf.diag();
+    sp_cx_mat syfdiag = Syf.diag();
+    // convert back to dense
+    cx_mat sxfd = strans(conv_to<cx_mat>::from(sxfdiag));
+    cx_mat syfd = strans(conv_to<cx_mat>::from(syfdiag));
+    cout << sxfd << endl;
+    sxfd.save("sxf_diagonal.csv", csv_ascii);
+    syfd.save("syf_diagonal.csv", csv_ascii);
+
+
+
+    sp_cx_mat Dybs = Syb*Dyb;
+    sp_cx_mat Dxfs = Sxf*Dxf;
+    sp_cx_mat Dxbs = Sxb*Dxb;
+    sp_cx_mat Dyfs = Syf*Dyf;
+
+    // matrix with PML
+    // A =  PEC_mask_y*PEC_mask_x*(Dxb*(Tmy^-1)*Dxf+ ...
+    //     Dyb*(Tmx^-1)*Dyf)*PEC_mask_x*PEC_mask_y+ omega^2*Tepz;
+    sp_cx_mat As = Dxbs*(1/mu0)*Dxfs + Dybs*(1/mu0)*Dyfs + omega*omega*Teps;
+
+    cx_mat Xs = spsolve(As,b);
+    // can't even save complex sparse matrices
+    //As.save("A_matrix.csv", csv_ascii);
+
+    // cout << Xs << endl;
+    // cout << X<<endl;
+
+    // save this field into a data files
+    //Hz.save("test_hz", hdf5_binary);
+    Xs.save("pml_test_hz.csv",csv_ascii);
 
     return 0;
 

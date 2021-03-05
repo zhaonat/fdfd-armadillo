@@ -100,8 +100,8 @@ cx_mat create_sfactor(double * wrange,
 //     double eta0 = sqrt(mu0/eps0);
 //
 //     double wrange [2] = {-1.0, 1.0}; // specified units of L0 or microns typically
-//     int Nw = 20;
-//     int Nw_pml = 5;
+//     int Nw = 100;
+//     int Nw_pml = 10;
 //
 //     //would I prefer this being a vector? // it's Nw+1...because we will later
 //     //cut it down
