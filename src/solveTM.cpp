@@ -18,8 +18,6 @@ map solveTM(double L0, double dL, double wvlen,
     // get size of Mz
     cx_mat b = 1i*omega*vectorise(Mz);
 
-
-
     //make a diagonal matrix using sp_cx_mat...no diag function, whihc sucks
     mat ind_cur = linspace(0,m-1,m);
     mat AB = join_rows(ind_cur, ind_cur).t();
@@ -28,10 +26,7 @@ map solveTM(double L0, double dL, double wvlen,
     sp_cx_mat Teps(locations, cvals);
     sp_cx_mat Teps_inv(locations, 1/cvals);
 
-    sp_cx_mat Dyb = createDws("y",-1,dL,N);
-    sp_cx_mat Dxf = createDws("x",1,dL,N);
-    sp_cx_mat Dxb = createDws("x",-1,dL,N);
-    sp_cx_mat Dyf = createDws("y",1,dL,N);
+
 
     cx_mat s_vector_x_f = create_sfactor(xrange,"f",omega,eps0, mu0,N[0],npml[0]);
     cx_mat s_vector_x_b = create_sfactor(xrange,"b",omega,eps0, mu0,N[0],npml[0]);
@@ -39,18 +34,26 @@ map solveTM(double L0, double dL, double wvlen,
     cx_mat s_vector_y_b = create_sfactor(yrange,"b",omega,eps0, mu0,N[1],npml[1]);
 
     // convert these to matrices 2d, not yet flattened
-    cx_mat Sx_f_2D = repmat(s_vector_x_f, N[0],1);
-    cx_mat Sy_f_2D = repmat(trans(s_vector_y_f), 1,N[1]);
-    cx_mat Sx_b_2D = repmat(s_vector_x_b,  N[0],1);
-    cx_mat Sy_b_2D = repmat(trans(s_vector_y_b), 1,N[1]);
+    cx_mat Sx_f_2D = repmat(1/s_vector_x_f, N[0],1);
+    cx_mat Sy_f_2D = repmat(1/trans(s_vector_y_f), 1,N[1]);
+    cx_mat Sx_b_2D = repmat(1/s_vector_x_b,  N[0],1);
+    cx_mat Sy_b_2D = repmat(1/trans(s_vector_y_b), 1,N[1]);
     cout << Sy_f_2D.n_rows << " "<<Sy_f_2D.n_cols << endl;
 
     //convert these to the final flattened diagonal matrices
-    sp_cx_mat Sxf = spdiags(m, vectorise(Sx_f_2D));
-    sp_cx_mat Sxb = spdiags(m, vectorise(Sx_f_2D));
-    sp_cx_mat Syf = spdiags(m, vectorise(Sx_f_2D));
-    sp_cx_mat Syb = spdiags(m, vectorise(Sx_f_2D));
+    sp_cx_mat Sxf = spdiags(m, vectorise(Sx_f_2D,1));
+    sp_cx_mat Sxb = spdiags(m, vectorise(Sx_b_2D,1));
+    sp_cx_mat Syf = spdiags(m, vectorise(Sy_f_2D,1));
+    sp_cx_mat Syb = spdiags(m, vectorise(Sy_b_2D,1));
 
+    // sp_cx_mat Dyb = createDws("y",-1,dL,N);
+    // sp_cx_mat Dxf = createDws("x",1,dL,N);
+    // sp_cx_mat Dxb = createDws("x",-1,dL,N);
+    // sp_cx_mat Dyf = createDws("y",1,dL,N);
+    sp_cx_mat Dybs = Syb*createDws("y",-1,dL,N);
+    sp_cx_mat Dxfs = Sxf*createDws("x",1,dL,N);
+    sp_cx_mat Dxbs = Sxb*createDws("x",-1,dL,N);
+    sp_cx_mat Dyfs = Syf*createDws("y",1,dL,N);
 
     sp_cx_mat A = Dxf*(Teps_inv)*Dxb + Dyf*(Teps_inv)*Dyb + omega*omega*Teps;
 
